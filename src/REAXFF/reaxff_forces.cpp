@@ -382,4 +382,36 @@ namespace ReaxFF {
     /*********** total force ***************/
     Compute_Total_Force(system, workspace, lists);
   }
+
+  void Compute_Forces_inner(reax_system *system, control_params *control,
+                      simulation_data *data, storage *workspace,
+                      reax_list **lists)
+  {
+
+    Init_Forces_noQEq(system, control, data, workspace, lists);
+
+    /********* bonded interactions ************/
+    Compute_Bonded_Forces(system, control, data, workspace, lists);
+
+    /*********** total force ***************/
+    Compute_Total_Force(system, workspace, lists);
+  }
+
+  void Compute_Forces_middle(reax_system *system, control_params *control,
+                      simulation_data *data, storage *workspace,
+                      reax_list **lists)
+  {
+  }
+
+  void Compute_Forces_outer(reax_system *system, control_params *control,
+                      simulation_data *data, storage *workspace,
+                      reax_list **lists)
+  {
+
+    Init_Forces_noQEq(system, control, data, workspace, lists);
+
+    /********* nonbonded interactions ************/
+    Compute_NonBonded_Forces(system, control, data, workspace, lists);
+
+  }
 }

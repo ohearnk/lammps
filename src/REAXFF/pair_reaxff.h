@@ -46,6 +46,9 @@ class PairReaxFF : public Pair {
   PairReaxFF(class LAMMPS *);
   ~PairReaxFF() override;
   void compute(int, int) override;
+  void compute_inner() override;
+  void compute_middle() override;
+  void compute_outer(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;
   void init_style() override;

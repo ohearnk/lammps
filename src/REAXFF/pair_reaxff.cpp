@@ -63,6 +63,7 @@ PairReaxFF::PairReaxFF(LAMMPS *lmp) : Pair(lmp)
 {
   if (lmp->citeme) lmp->citeme->add(cite_pair_reax_c);
 
+  respa_enable = 1;
   single_enable = 0;
   restartinfo = 0;
   one_coeff = 1;
@@ -528,6 +529,184 @@ void PairReaxFF::compute(int eflag, int vflag)
       }
     FindBond();
   }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairReaxFF::compute_inner()
+{
+  // communicate num_bonds once every reneighboring
+  // 2 num arrays stored by fix, grab ptr to them
+
+ if (neighbor->ago == 0) comm->forward_comm(fix_reaxff);
+  int *num_bonds = fix_reaxff->num_bonds;
+  int *num_hbonds = fix_reaxff->num_hbonds;
+
+//  ev_init(eflag,vflag);
+
+  api->system->n = atom->nlocal; // my atoms
+  api->system->N = atom->nlocal + atom->nghost; // mine + ghosts
+
+  if (api->system->acks2_flag) {
+    auto ifix = modify->get_fix_by_style("^acks2/reax").front();
+    api->workspace->s = (dynamic_cast<FixACKS2ReaxFF*>( ifix))->get_s();
+  }
+
+ // setup data structures
+  setup();
+
+  Reset(api->system, api->control, api->data, api->workspace, &api->lists);
+  api->workspace->realloc.num_far = write_reax_lists();
+
+  // forces
+
+  Compute_Forces_inner(api->system, api->control, api->data, api->workspace, &api->lists);
+//  read_reax_forces(vflag);
+
+  for (int k = 0; k < api->system->N; ++k) {
+    num_bonds[k] = api->system->my_atoms[k].num_bonds;
+    num_hbonds[k] = api->system->my_atoms[k].num_hbonds;
+  }
+
+  // energies and pressure
+
+  if (eflag_global) {
+
+    // Store the different parts of the energy
+    // in a list for output by compute pair command
+
+    pvector[0] = api->data->my_en.e_bond;
+    pvector[1] = api->data->my_en.e_ov + api->data->my_en.e_un;
+    pvector[2] = api->data->my_en.e_lp;
+    pvector[3] = 0.0;
+    pvector[4] = api->data->my_en.e_ang;
+    pvector[5] = api->data->my_en.e_pen;
+    pvector[6] = api->data->my_en.e_coa;
+    pvector[7] = api->data->my_en.e_hb;
+    pvector[8] = api->data->my_en.e_tor;
+    pvector[9] = api->data->my_en.e_con;
+    pvector[10] = api->data->my_en.e_vdW;
+    pvector[11] = api->data->my_en.e_ele;
+    pvector[12] = 0.0;
+    pvector[13] = api->data->my_en.e_pol;
+  }
+
+  if (vflag_fdotr) virial_fdotr_compute();
+
+// Set internal timestep counter to that of LAMMPS
+
+  api->data->step = update->ntimestep;
+
+  // populate tmpid and tmpbo arrays for fix reaxff/species
+  int i, j;
+
+  if (fixspecies_flag) {
+    if (api->system->N > nmax) {
+      memory->destroy(tmpid);
+      memory->destroy(tmpbo);
+      nmax = api->system->N;
+      memory->create(tmpid,nmax,MAXSPECBOND,"pair:tmpid");
+      memory->create(tmpbo,nmax,MAXSPECBOND,"pair:tmpbo");
+    }
+
+    for (i = 0; i < api->system->N; i ++)
+      for (j = 0; j < MAXSPECBOND; j ++) {
+        tmpbo[i][j] = 0.0;
+        tmpid[i][j] = 0;
+      }
+    FindBond();
+  }
+
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairReaxFF::compute_middle()
+{
+
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairReaxFF::compute_outer(int eflag, int vflag)
+{
+  // communicate num_bonds once every reneighboring
+  // 2 num arrays stored by fix, grab ptr to them
+
+ if (neighbor->ago == 0) comm->forward_comm(fix_reaxff);
+  int *num_bonds = fix_reaxff->num_bonds;
+  int *num_hbonds = fix_reaxff->num_hbonds;
+
+
+  api->system->n = atom->nlocal; // my atoms
+  api->system->N = atom->nlocal + atom->nghost; // mine + ghosts
+
+ // setup data structures
+  setup();
+
+  Reset(api->system, api->control, api->data, api->workspace, &api->lists);
+  api->workspace->realloc.num_far = write_reax_lists();
+
+
+  // forces
+
+  Compute_Forces_outer(api->system,api->control,api->data,api->workspace,&api->lists);
+  read_reax_forces(vflag);
+
+  for (int k = 0; k < api->system->N; ++k) {
+    num_bonds[k] = api->system->my_atoms[k].num_bonds;
+    num_hbonds[k] = api->system->my_atoms[k].num_hbonds;
+  }
+
+  // energies and pressure
+
+  if (eflag_global) {
+
+    // Store the different parts of the energy
+    // in a list for output by compute pair command
+
+    pvector[0] = api->data->my_en.e_bond;
+    pvector[1] = api->data->my_en.e_ov + api->data->my_en.e_un;
+    pvector[2] = api->data->my_en.e_lp;
+    pvector[3] = 0.0;
+    pvector[4] = api->data->my_en.e_ang;
+    pvector[5] = api->data->my_en.e_pen;
+    pvector[6] = api->data->my_en.e_coa;
+    pvector[7] = api->data->my_en.e_hb;
+    pvector[8] = api->data->my_en.e_tor;
+    pvector[9] = api->data->my_en.e_con;
+    pvector[10] = api->data->my_en.e_vdW;
+    pvector[11] = api->data->my_en.e_ele;
+    pvector[12] = 0.0;
+    pvector[13] = api->data->my_en.e_pol;
+  }
+
+  if (vflag_fdotr) virial_fdotr_compute();
+
+// Set internal timestep counter to that of LAMMPS
+
+  api->data->step = update->ntimestep;
+
+  // populate tmpid and tmpbo arrays for fix reaxff/species
+  int i, j;
+
+  if (fixspecies_flag) {
+    if (api->system->N > nmax) {
+      memory->destroy(tmpid);
+      memory->destroy(tmpbo);
+      nmax = api->system->N;
+      memory->create(tmpid,nmax,MAXSPECBOND,"pair:tmpid");
+      memory->create(tmpbo,nmax,MAXSPECBOND,"pair:tmpbo");
+    }
+
+    for (i = 0; i < api->system->N; i ++)
+      for (j = 0; j < MAXSPECBOND; j ++) {
+        tmpbo[i][j] = 0.0;
+        tmpid[i][j] = 0;
+      }
+    FindBond();
+  }
+
 }
 
 /* ---------------------------------------------------------------------- */
