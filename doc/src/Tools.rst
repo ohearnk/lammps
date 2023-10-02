@@ -320,7 +320,8 @@ eam generate tool
 -----------------------------
 
 The tools/eam_generate directory contains several one-file C programs
-that convert an analytic formula into a tabulated :doc:`embedded atom method (EAM) <pair_eam>` setfl potential file.  The potentials they
+that convert an analytic formula into a tabulated :doc:`embedded atom
+method (EAM) <pair_eam>` setfl potential file.  The potentials they
 produce are in the potentials directory, and can be used with the
 :doc:`pair_style eam/alloy <pair_eam>` command.
 
@@ -882,9 +883,9 @@ dependencies and redirects the download to the local cache.
 phonon tool
 ------------------------
 
-The phonon subdirectory contains a post-processing tool useful for
-analyzing the output of the :doc:`fix phonon <fix_phonon>` command in
-the PHONON package.
+The phonon subdirectory contains a post-processing tool, *phana*, useful
+for analyzing the output of the :doc:`fix phonon <fix_phonon>` command
+in the PHONON package.
 
 See the README file for instruction on building the tool and what
 library it needs.  And see the examples/PACKAGES/phonon directory
@@ -1071,7 +1072,7 @@ getting started, but not as a fully tested and supported feature of the
 LAMMPS distribution.  Any contributions to complete this are, of course,
 welcome.  Please also note, that for the case of creating a Python wrapper,
 a fully supported :doc:`Ctypes based lammps module <Python_module>`
-already exists.  That module is designed to be object oriented while
+already exists.  That module is designed to be object-oriented while
 SWIG will generate a 1:1 translation of the functions in the interface file.
 
 Building the wrapper
