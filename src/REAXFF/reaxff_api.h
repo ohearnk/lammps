@@ -141,6 +141,7 @@ extern void LR_vdW_Coulomb(reax_system *, storage *, control_params *, int, int,
 // reset tools
 
 extern void Reset(reax_system *, control_params *, simulation_data *, storage *, reax_list **);
+extern void Reset_outer(reax_system *, storage *);
 extern void Reset_Simulation_Data(simulation_data *);
 extern void Reset_Workspace(reax_system *, storage *);
 

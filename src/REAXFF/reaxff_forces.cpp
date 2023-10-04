@@ -407,11 +407,7 @@ namespace ReaxFF {
                       simulation_data *data, storage *workspace,
                       reax_list **lists)
   {
-
-    Init_Forces_noQEq(system, control, data, workspace, lists);
-
     /********* nonbonded interactions ************/
     Compute_NonBonded_Forces(system, control, data, workspace, lists);
-
   }
 }

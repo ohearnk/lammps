@@ -60,7 +60,11 @@ namespace ReaxFF {
     memset(workspace->dDeltap_self, 0, system->total_cap * sizeof(rvec));
     memset(workspace->CdDelta, 0, system->total_cap * sizeof(double));
     memset(workspace->f, 0, system->total_cap * sizeof(rvec));
+  }
 
+  void Reset_Workspace_outer(reax_system *system, storage *workspace)
+  {
+    memset(workspace->f, 0, system->total_cap * sizeof(rvec));
   }
 
   static void Reset_Neighbor_Lists(reax_system *system, control_params *control,
@@ -124,5 +128,11 @@ namespace ReaxFF {
     Reset_Simulation_Data(data);
     Reset_Workspace(system, workspace);
     Reset_Neighbor_Lists(system, control, workspace, lists);
+  }
+
+
+  void Reset_outer(reax_system *system, storage *workspace)
+  {
+    Reset_Workspace_outer(system, workspace);
   }
 }
