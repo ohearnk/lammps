@@ -48,6 +48,10 @@ extern void BondsOMP(reax_system *, simulation_data *, storage *, reax_list **);
 
 extern void Compute_ForcesOMP(reax_system *, control_params *, simulation_data *, storage *,
                               reax_list **);
+extern void Compute_ForcesOMP_inner(reax_system *, control_params *, simulation_data *, storage *,
+                              reax_list **);
+extern void Compute_ForcesOMP_outer(reax_system *, control_params *, simulation_data *, storage *,
+                              reax_list **);
 
 // hydrogen bonds
 

@@ -31,6 +31,8 @@ class PairReaxFFOMP : public PairReaxFF, public ThrOMP {
   PairReaxFFOMP(class LAMMPS *);
   ~PairReaxFFOMP() override;
   void compute(int, int) override;
+  void compute_inner() override;
+  void compute_outer(int, int) override;
   void init_style() override;
 
   inline FixOMP *getFixOMP() { return fix; };

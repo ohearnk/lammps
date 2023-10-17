@@ -397,12 +397,6 @@ namespace ReaxFF {
     Compute_Total_Force(system, workspace, lists);
   }
 
-  void Compute_Forces_middle(reax_system *system, control_params *control,
-                      simulation_data *data, storage *workspace,
-                      reax_list **lists)
-  {
-  }
-
   void Compute_Forces_outer(reax_system *system, control_params *control,
                       simulation_data *data, storage *workspace,
                       reax_list **lists)

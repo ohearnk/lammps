@@ -79,6 +79,7 @@ PairReaxFFOMP::PairReaxFFOMP(LAMMPS *lmp) : PairReaxFF(lmp), ThrOMP(lmp, THR_PAI
 {
   if (lmp->citeme) lmp->citeme->add(cite_pair_reaxff_omp);
 
+  respa_enable = 1;
   suffix_flag |= Suffix::OMP;
   api->system->pair_ptr = this;
   api->system->omp_active = 1;
@@ -341,6 +342,154 @@ void PairReaxFFOMP::compute(int eflag, int vflag)
 
     FindBond();
   }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairReaxFFOMP::compute_inner()
+{
+  // communicate num_bonds once every reneighboring
+  // 2 num arrays stored by fix, grab ptr to them
+
+  if (neighbor->ago == 0) comm->forward_comm(fix_reaxff);
+  int *num_bonds = fix_reaxff->num_bonds;
+  int *num_hbonds = fix_reaxff->num_hbonds;
+
+  ev_init(1,1);
+
+  api->system->n = atom->nlocal; // my atoms
+  api->system->N = atom->nlocal + atom->nghost; // mine + ghosts
+
+#if defined(_OPENMP)
+#pragma omp parallel LMP_DEFAULT_NONE LMP_SHARED(eflag,vflag)
+#endif
+  {
+#if defined(_OPENMP)
+     int tid = omp_get_thread_num();
+#else
+     int tid = 0;
+#endif
+     ThrData *thr = fix->get_thr(tid);
+     thr->timer(Timer::START);
+     ev_setup_thr(1, 1, api->system->N, eatom, vatom, nullptr, thr);
+  }
+
+  // setup data structures
+
+  setup();
+
+  Reset(api->system, api->control, api->data, api->workspace, &api->lists);
+
+  // Why not update workspace like in MPI-only code?
+  // Using the MPI-only way messes up the hb energy
+  //workspace->realloc.num_far = write_reax_lists();
+  write_reax_lists();
+
+  // forces
+
+  Compute_ForcesOMP_inner(api->system,api->control,api->data,api->workspace,&api->lists);
+  read_reax_forces(0);
+
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static)
+#endif
+  for (int k = 0; k < api->system->N; ++k) {
+    num_bonds[k] = api->system->my_atoms[k].num_bonds;
+    num_hbonds[k] = api->system->my_atoms[k].num_hbonds;
+  }
+
+  // Set internal timestep counter to that of LAMMPS
+
+  api->data->step = update->ntimestep;
+
+  // populate tmpid and tmpbo arrays for fix reaxff/species
+
+  if (fixspecies_flag) {
+    if (api->system->N > nmax) {
+      memory->destroy(tmpid);
+      memory->destroy(tmpbo);
+      nmax = api->system->N;
+      memory->create(tmpid,nmax,MAXSPECBOND,"pair:tmpid");
+      memory->create(tmpbo,nmax,MAXSPECBOND,"pair:tmpbo");
+    }
+
+#if defined(_OPENMP)
+#pragma omp parallel for collapse(2) schedule(static) default(shared)
+#endif
+    for (int i = 0; i < api->system->N; i++)
+      for (int j = 0; j < MAXSPECBOND; j++) {
+        tmpbo[i][j] = 0.0;
+        tmpid[i][j] = 0;
+      }
+
+    FindBond();
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairReaxFFOMP::compute_outer(int eflag, int vflag)
+{
+  const int nall = api->system->N;
+
+  // setup data structures handled by compute_inner
+
+  Reset_outer(api->system, api->workspace);
+
+  // forces
+
+  Compute_ForcesOMP_outer(api->system,api->control,api->data,api->workspace,&api->lists);
+  read_reax_forces(vflag);
+
+  const int nthreads = comm->nthreads;
+#if defined(_OPENMP)
+#pragma omp parallel LMP_DEFAULT_NONE LMP_SHARED(vflag)
+#endif
+  {
+#if defined(_OPENMP)
+     int tid = omp_get_thread_num();
+#else
+     int tid = 0;
+#endif
+     ThrData *thr = fix->get_thr(tid);
+     thr->timer(Timer::PAIR);
+
+     // the pair style reduces energy and forces directly. so only reduce virial/
+     // per-atom virial and per-atom centroid virial are the same for two-body
+     // many-body pair styles not yet implemented
+     if (vflag & (VIRIAL_ATOM | VIRIAL_CENTROID)) {
+       data_reduce_thr(&(vatom[0][0]), nall, nthreads, 6, tid);
+     }
+  }
+
+  // energies and pressure
+
+  if (eflag_global) {
+
+    // Store the different parts of the energy
+    // in a list for output by compute pair command
+
+    pvector[0] = api->data->my_en.e_bond;
+    pvector[1] = api->data->my_en.e_ov + api->data->my_en.e_un;
+    pvector[2] = api->data->my_en.e_lp;
+    pvector[3] = 0.0;
+    pvector[4] = api->data->my_en.e_ang;
+    pvector[5] = api->data->my_en.e_pen;
+    pvector[6] = api->data->my_en.e_coa;
+    pvector[7] = api->data->my_en.e_hb;
+    pvector[8] = api->data->my_en.e_tor;
+    pvector[9] = api->data->my_en.e_con;
+    pvector[10] = api->data->my_en.e_vdW;
+    pvector[11] = api->data->my_en.e_ele;
+    pvector[12] = 0.0;
+    pvector[13] = api->data->my_en.e_pol;
+  }
+
+  if (vflag_fdotr) virial_fdotr_compute();
+
+  // Set internal timestep counter to that of LAMMPS
+
+  api->data->step = update->ntimestep;
 }
 
 /* ---------------------------------------------------------------------- */

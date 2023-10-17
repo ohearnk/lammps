@@ -70,8 +70,6 @@ extern void Compute_Forces(reax_system *, control_params *, simulation_data *, s
                            reax_list **);
 extern void Compute_Forces_inner(reax_system *, control_params *, simulation_data *, storage *,
                            reax_list **);
-extern void Compute_Forces_middle(reax_system *, control_params *, simulation_data *, storage *,
-                           reax_list **);
 extern void Compute_Forces_outer(reax_system *, control_params *, simulation_data *, storage *,
                            reax_list **);
 extern void Estimate_Storages(reax_system *, control_params *, reax_list **, int *, int *, int *,

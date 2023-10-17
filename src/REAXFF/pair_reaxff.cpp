@@ -533,7 +533,6 @@ void PairReaxFF::compute(int eflag, int vflag)
 
 /* ---------------------------------------------------------------------- */
 
-//void PairReaxFF::compute_inner(int eflag, int vflag)
 void PairReaxFF::compute_inner()
 {
   // communicate num_bonds once every reneighboring
@@ -543,9 +542,6 @@ void PairReaxFF::compute_inner()
   int *num_bonds = fix_reaxff->num_bonds;
   int *num_hbonds = fix_reaxff->num_hbonds;
 
-  //HACK: rRESPA API currently only passes eflag/vflag to computer_outer,
-  //      need changes to also pass to compute_inner / computer_middle
-  //      for more complex potentials where energy / force tallying is partioned and requires accumulation
   ev_init(1,1);
 
   api->system->n = atom->nlocal; // my atoms
@@ -595,13 +591,6 @@ void PairReaxFF::compute_inner()
 
 /* ---------------------------------------------------------------------- */
 
-//void PairReaxFF::compute_middle(int /*eflag*/, int /*vflag*/)
-void PairReaxFF::compute_middle()
-{
-}
-
-/* ---------------------------------------------------------------------- */
-
 void PairReaxFF::compute_outer(int /*eflag*/, int vflag)
 {
   if (api->system->acks2_flag) {
@@ -609,7 +598,7 @@ void PairReaxFF::compute_outer(int /*eflag*/, int vflag)
     api->workspace->s = (dynamic_cast<FixACKS2ReaxFF*>(ifix))->get_s();
   }
 
-  // setup data structures handled by computer_inner
+  // setup data structures handled by compute_inner
   
   Reset_outer(api->system, api->workspace);
 

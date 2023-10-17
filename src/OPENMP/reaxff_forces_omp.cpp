@@ -154,6 +154,43 @@ namespace ReaxFF {
 
 /* ---------------------------------------------------------------------- */
 
+/* this version of Compute_Total_Force_outer computes forces from
+   coefficients accumulated by all interaction functions.
+   Saves enormous time & space! */
+  static void Compute_Total_ForceOMP_outer(reax_system *system, control_params *control,
+                                     storage *workspace, reax_list **lists)
+  {
+    int nthreads = control->nthreads;
+    long totalReductionSize = (bigint)system->N * nthreads;
+
+#if defined(_OPENMP)
+#pragma omp parallel default(shared) //LMP_DEFAULT_NONE
+#endif
+    {
+      int i, j;
+
+#if defined(_OPENMP)
+#pragma omp for schedule(guided)
+#endif
+      for (i = 0; i < system->N; ++i) {
+        for (j = 0; j < nthreads; ++j)
+          rvec_Add(workspace->f[i], workspace->forceReduction[system->N*j+i]);
+      }
+
+
+#if defined(_OPENMP)
+#pragma omp for schedule(guided)
+#endif
+      for (i = 0; i < totalReductionSize; i++) {
+        workspace->forceReduction[i][0] = 0;
+        workspace->forceReduction[i][1] = 0;
+        workspace->forceReduction[i][2] = 0;
+      }
+    } // parallel region
+  }
+
+/* ---------------------------------------------------------------------- */
+
   static void Validate_ListsOMP(reax_system *system, reax_list **lists,
                          int step, int n, int N, int numH)
   {
@@ -475,5 +512,34 @@ namespace ReaxFF {
 
     // Total Force
     Compute_Total_ForceOMP(system, control, workspace, lists);
+  }
+
+/* ---------------------------------------------------------------------- */
+
+  void Compute_ForcesOMP_inner(reax_system *system, control_params *control,
+                          simulation_data *data, storage *workspace,
+                          reax_list **lists)
+  {
+    // Init Forces
+    Init_Forces_noQEq_OMP(system, control, data, workspace, lists);
+
+    // Bonded Interactions
+    Compute_Bonded_ForcesOMP(system, control, data, workspace, lists);
+
+    // Total Force
+    Compute_Total_ForceOMP(system, control, workspace, lists);
+  }
+
+/* ---------------------------------------------------------------------- */
+
+  void Compute_ForcesOMP_outer(reax_system *system, control_params *control,
+                          simulation_data *data, storage *workspace,
+                          reax_list **lists)
+  {
+    // Nonbonded Interactions
+    Compute_NonBonded_ForcesOMP(system, control, data, workspace, lists);
+
+    // Total Force
+    Compute_Total_ForceOMP_outer(system, control, workspace, lists);
   }
 }
